@@ -37,7 +37,7 @@
 *  FriendModel和OfflineMessageModel则是没有暂存数据的上层类，这是因为对于Friend来说，其数据本身就是一个User，只需要查询到好友的id然后在User表中内联查询一下便可得到信息；
 *  对于OfflineMessage这是没有必要这些类都在/include/model里面
 ## 通信格式
-‘’’ c++
+‘’’ java
 1.登录
 json["msgid"] = LOGIN_MSG;
 json["id"]			//用户id
