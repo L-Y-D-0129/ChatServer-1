@@ -119,8 +119,10 @@ json["id"]			//要注销的id
 *	one loop per thread的设计模型
 *	muduo封装了线程池
 ```
- 什么是one loop per thread： 这是muduo网络库采用的reactor模型，有点像Nginx的负载均衡，但是也有差别，Nginx采用的是多进程，而muduo是多线程。
-在muduo设计中，有一个main reactor负责接收来自客户端的连接。然后使用轮询的方式给sub reactor去分配连接，而客户端的读写事件都在这个sub reactor上进行。咋样，像不像Nginx的io进程+工作进程的组合
+ 什么是one loop per thread： 这是muduo网络库采用的reactor模型，有点像Nginx的负载均衡，但是也有差别，
+Nginx采用的是多进程，而muduo是多线程。在muduo设计中，有一个main reactor负责接收来自客户端的连接。
+然后使用轮询的方式给sub reactor去分配连接，而客户端的读写事件都在这个sub reactor上进行。咋样，像不
+像Nginx的io进程+工作进程的组合
 ```
 而在muduo提供了两个非常重要的注册回调接口：连接回调和消息回调
 ```
