@@ -14,6 +14,7 @@
 数据库：MySQL
 
 编程语言：C++
+
 项目特点
 
 - 基于 muduo 网络库开发网络核心模块，实现高效通信
@@ -26,7 +27,7 @@
 
 # 项目概述
 ## 业务流程
-项目大概是模仿微信去实现一个通讯工具，主要业务分为注册、登录、加好友、查看离线消息、一对一群聊、创建群、加入群、群聊等，详细业务流程关系如下图：
+在 Linux 环境下基于 muduo 开发的集群聊天服务器。实现新用户注册、用户登录、添加好友、添加群组、好友通信、群组聊天、保持离线消息等功能。详细业务流程关系如下图：
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/2021012713535628.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3NoZW5taW5neHVlSVQ=,size_16,color_FFFFFF,t_70)
 
 
