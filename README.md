@@ -118,4 +118,126 @@ json["id"]			//要注销的id
 *	方便，简单
 *	one loop per thread的设计模型
 *	muduo封装了线程池
+```
+ 什么是one loop per thread： 这是muduo网络库采用的reactor模型，有点像Nginx的负载均衡，但是也有差别，Nginx采用的是多进程，而muduo是多线程。 在muduo设计中，有一个main reactor负责接收来自客户端的连接。然后使用轮询的方式给sub reactor去分配连接，而客户端的读写事件都在这个sub reactor上进行。咋样，像不像Nginx的io进程+工作进程的组合
+```
+而在muduo提供了两个非常重要的注册回调接口：连接回调和消息回调
+```
+//注册连接回调
+server_.setConnectionCallback(bind(&ChatServer::on_connection, this, _1));
+
+//注册消息回调
+server_.setMessageCallback(bind(&ChatServer::on_message, this, _1, _2, _3));
+```
+在这里，我直接和我设置一个处理有关连接事件的方法和处理读写事件的方法。
+```
+//上报连接相关信息的回调函数
+void on_connection(const TcpConnectionPtr &);
+
+//上报读写时间相关信息的回调函数
+void on_message(const TcpConnectionPtr &, Buffer *, Timestamp);
+```
+当用户进行连接或者断开连接时便会调用on_connection方法进行处理，其执行对象应该是main reactor。
+
+发生读写事件时，则会调用on_message方法，执行对象为sub reactor，其内容与网络模块和业务模块解耦合至关重要！！！
+## 网络模块和业务模块解耦合
+在通信模块中，有一个字段msgid，其代表着服务器和客户端通信的消息类型，值是一个枚举类型，保存在/include/public.hpp文件中，总共有10个取值：
+```
+    LOGIN_MSG = 1,  //登录消息，绑定login
+    LOGIN_MSG_ACK,  //登录响应消息
+    REG_MSG,        //注册消息，绑定regist
+    REG_MSG_ACK,    //注册响应消息
+    ONE_CHAT_MSG,   //一对一聊天消息
+    ADD_FRIEND_MSG, //添加好友消息
+
+    CREATE_GROUP_MSG, //创建群聊
+    ADD_GROUP_MSG,    //加入群聊
+    GROUP_CHAT_MSG,   //群聊消息
+
+    LOGINOUT_MSG,   //注销消息
+```
+根据这些消息类型，我们可以在业务模块添加一个无序关联容器unordered_map，其间为消息类型，值为发生不同类型事件所应该调用方法。
+```
+msg_handler_map_.insert({LOGIN_MSG, bind(&ChatService::login, this, _1, _2, _3)});
+msg_handler_map_.insert({LOGINOUT_MSG, bind(&ChatService::loginout, this, _1, _2, _3)});
+msg_handler_map_.insert({REG_MSG, bind(&ChatService::regist, this, _1, _2, _3)});
+msg_handler_map_.insert({ONE_CHAT_MSG, bind(&ChatService::one_chat, this, _1, _2, _3)});
+msg_handler_map_.insert({ADD_FRIEND_MSG, bind(&ChatService::add_friend, this, _1, _2, _3)});
+msg_handler_map_.insert({CREATE_GROUP_MSG, bind(&ChatService::create_group, this, _1, _2, _3)});
+msg_handler_map_.insert({ADD_GROUP_MSG, bind(&ChatService::add_group, this, _1, _2, _3)});
+msg_handler_map_.insert({GROUP_CHAT_MSG, bind(&ChatService::group_chat, this, _1, _2, _3)});
+```
+这样我们就得到了一个存储消息类型和处理这个消息的方法的容器。
+
+这样，我们在网络层就可以根据消息类型来获得并执行其handler
+```
+//解耦网络和业务模块的代码
+//通过js里面的msgid，绑定msgid的回调函数，获取业务处理器handler
+auto msg_handler = ChatService::instance()->get_handler(js["msgid"].get<int>());
+
+msg_handler(conn, js, time);
+```
+## 业务模块
+由于与网络模块的解耦，在业务模块我们就不用去关系网络上所发生的事情，专注业务便可。
+
+具体业务相关的数据结构如下：
+```
+//存储在线用户的连接情况，便于服务器给用户发消息，注意线程安全
+unordered_map<int, TcpConnectionPtr> user_connection_map_;
+
+mutex conn_mutex_;
+
+UserModel user_model_;
+OfflineMessageModel offline_message_model_;
+FriendModel friend_model_;
+GroupModel group_model_;
+```
+### 注册业务
+当服务器接收到 json 字符串的时候，对其进行反序列化，得到要注册的信息，然后写入到User表中，成功就将id号返回，失败就把errno字段设置为1。
+### 登录业务
+当服务器接收到 json 字符串的时候，对其进行反序列化，得到用户传递过来的账号和密码信息。
+
+首先就是检测这个账号和密码是否与服务器中的数据匹配，如果不匹配就把errno设置为1并返回 id or password error的错误信息。
+
+如果匹配，就检测当前用户是否在线，因为有在别的设备登录的状况，如果在线就把errno设置为2，返回 id is online的错误信息
+
+如果用户不在线，这个时候用户就是登陆成功了，这个时候服务器就把该用户的好友列表，群组列表以及离线消息都推送给该用户。
+### 加好友业务
+这个业务很简单，服务器得到反序列化的信息，然后将这个信息写入Friend表中即可。
+### 一对一聊天业务
+服务器接收到客户端的信息，然后去本服务器的user_connection_map_接受信息的用户是否在本服务器在线，在线的话直接转发即可，不在线的话，看看数据库里面的信息是否是在线，如果在线，那么就是接收用户在其他服务器登录，将消息通过redis中间件转发即可。
+
+如果均不在线，转储离线消息即可。
+### 创建群业务
+服务器接收到客户端的信息，把群组的信息写入到AllGroup表中，并将创建者的信息写入到GroupUser中，设置创建者为creator
+### 加入群业务
+服务器接收到客户端的信息，将用户数据写入到GroupUser表中，并将role角色设置为normal。
+### 群聊业务
+服务器接收到客户端的信息，先去GroupUser查询到所有群员的id，然后一个个去本服务器的user_connection_map_接受信息的用户是否在本服务器在线，在线的话直接转发即可，不在线的话，看看数据库里面的信息是否是在线，如果在线，那么就是接收用户在其他服务器登录，将消息通过redis中间件转发即可。
+
+如果均不在线，转储离线消息即可。
+### 注销业务
+服务器收到客户端发来的信息，将该用户在User表中所对应的state改为offline。
+## 服务器集群
+一般来说，一台服务器只能支持1~2w的并发量，但是这是远远不够的，我们需要更高的并发量支持，这个时候就需要引入Nginx tcp长连接负载均衡算法。
+
+当一个新的客户端连接到来时，负载均衡模块便会根据我们在nginx.conf里面设置的参数来分配服务器资源。
+
+![1](https://github.com/user-attachments/assets/28747744-fcf7-4eba-b27b-5451b453d4dd)
+
+按图中所示，客户端只用连接我们的负载均衡服务器，然后服务器就会自动把client连接分配到对应的server服务器。
+## 跨服务器通信
+如果我一个在server1的用户想要给在server2的用户发送消息要怎么办呢？
+
+是像下面这样把每个服务器连接起来么？
+
+![2](https://github.com/user-attachments/assets/3cf5ec51-44ca-4b6d-9502-476b47efeae1)
+
+这样肯定不行，服务器之间关联性太强了，一旦多加一个服务器，以前的服务器都要增加一条指向它的连接。
+
+所以，我们可以借鉴交换机连接PC的思想，引入Redis消息队列中间件！
+
+![3](https://github.com/user-attachments/assets/484c7a9f-4570-4934-b0bb-d2513468aee7)
+
+当客户端登录的时候，服务器吧它的id号 subscribe到redis中间件，表示该服务器对这个id发生的事件感兴趣，而Redis收到发送给该id的消息时就会 把消息转发到这个服务器上。
 
