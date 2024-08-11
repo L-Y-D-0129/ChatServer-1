@@ -105,6 +105,17 @@ json["msgid"] = LOGINOUT_MSG;
 json["id"]			//要注销的id
 
 ```
+这里要解释一下：
 
+*  msgid字段代表着业务类型，这个在/include/public.hpp文件中有详细解释。
+*  我们这里并没有User表中的state字段，这是因为，这个表示用户是否在线的字段会被服务器自动设置，当用户登录会被设置成online，用户下线或者服务器异常则会被设置成offline
+## 网络和业务模块
+### 网络模块
+在这里网络模块我没有自己去socket+epoll这样造轮子，而是选择直接使用了muduo网络库提供的接口。
 
+使用muduo网络库有很多好处：
+
+*	方便，简单
+*	one loop per thread的设计模型
+*	muduo封装了线程池
 
