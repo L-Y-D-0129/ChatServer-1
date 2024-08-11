@@ -37,10 +37,7 @@
 *  FriendModel和OfflineMessageModel则是没有暂存数据的上层类，这是因为对于Friend来说，其数据本身就是一个User，只需要查询到好友的id然后在User表中内联查询一下便可得到信息；
 *  对于OfflineMessage这是没有必要这些类都在/include/model里面
 ## 通信格式
-服务器和客户端的通信采用了JSON来完成数据在网络中的标准传输。
-
-对于不同的数据则是采用了不同的格式，具体如下：
-'''
+‘’’ c++
 1.登录
 json["msgid"] = LOGIN_MSG;
 json["id"]			//用户id
@@ -102,8 +99,7 @@ json["time"]		//发送时间
 10.注销
 json["msgid"] = LOGINOUT_MSG;
 json["id"]			//要注销的id
-'''
-
+‘’’
 
 
 
