@@ -1,11 +1,11 @@
 # -
 基于muduo网络库的集群聊天服务器
 
-作者：shenmingik
+作者：zhangjiale
 
-邮箱：2107810343@qq.com
+邮箱：19845925653@163.com
 
-时间：2021/1/26 22:17
+时间：2024/2/20 20:30
 
 开发环境：Ubuntu VS Code
 
@@ -15,15 +15,11 @@
 
 编程语言：C++
 
-源码连接：
-[微云链接](https://share.weiyun.com/PTtAqitJ)
-
 # 项目概述
 ## 业务流程
-项目大概是模仿QQ去实现一个通讯工具，主要业务分为注册、登录、加好友、查看离线消息、一对一群聊、创建群、加入群、群聊等，详细业务流程关系如下图：
+项目大概是模仿微信去实现一个通讯工具，主要业务分为注册、登录、加好友、查看离线消息、一对一群聊、创建群、加入群、群聊等，详细业务流程关系如下图：
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/2021012713535628.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3NoZW5taW5neHVlSVQ=,size_16,color_FFFFFF,t_70)
 
-既然是模仿QQ，那么就要有客户端，服务端，存储数据的数据库。这样的话，我们就可以采用MVC架构。
 
 但是作为一个集群系统我们是不是该考虑更多的问题？
 
